@@ -247,3 +247,60 @@ Consequences:
 - PR #1 remains open. Before merging, a real `./gradlew assembleDebug` on an
   SDK-equipped machine and an arm64 on-device smoke test (install → sign-in →
   Agent Mode request, including the glibc install button) are still required.
+
+### 2026-11-27 (late 4) — Full local verification session (npm toolchain); branch-index recovery
+
+The local branch had been reset to the base commit `24cf7fe` out-of-band (working tree was
+untouched). Hash comparison of every differing/untracked path against `origin/arena/64ecbac3-android-code-studio2-0`
+(tip `7f5d3e1`) proved content identity (incl. this file); the branch was restored with
+`git reset --hard origin/arena/64ecbac3-android-code-studio2-0`. Zero feature content was lost.
+
+Local verification receipts (Debian 12 sandbox, no Android SDK/Gradle distribution/Maven Central
+reachable; `dl.google.com`, `services.gradle.org`, `plugins.gradle.org`, `repo.maven.apache.org`,
+`api.adoptium.net`, GitHub release assets — all TLS-blocked; only `github.com`,
+`codeload.github.com`, `registry.npmjs.org`, `pypi.org`, `files.pythonhosted.org` reachable;
+`git submodule update --init --recursive` succeeded for `composite-builds/external/logback-android`):
+
+- **Kotlin (npm `kotlin-compiler` 2.4.21 on npm `javajre-linux-64` JRE 17.0.8):**
+  `kotlinc -jvm-target 17` over `core/app/src/main/java/com/tom/rv2ide/artificial/harness/*.kt`
+  + `.../agents/harness/*.kt` + `agents/Agents.kt` + `secrets/ApiKey.kt` and hand-written
+  framework stubs under /tmp — **exit 0**; only benign warnings (deprecated `URL(String)`,
+  two unnecessary safe calls, one impossible cast in a stub). 106 feature `.class` artifacts.
+  `R.kt` for the stub classpath was generated programmatically from the real
+  `res/values*/**.xml` + `res/{layout,menu,xml,drawable}*` + `@+id` occurrences across all
+  22 resource roots (matched `@id`/`@layout`/`@string`/... references used by the app).
+- **Full `core/app` stub-compile was attempted and honestly fails offline:**
+  14,076–14,215 `error:` lines across ~304–308 of 360 files, 11,665 dominated by
+  `unresolved reference` for androidx/Material/library APIs (sora-editor, jgit, mpchart,
+  glide, retrofit, logback, termux modules, sibling `core/common` & `utilities/*` modules).
+  Methodology note: the full run cannot validate third-party calls without their AARs,
+  and cannot even see sibling-module declarations (e.g. `core/common/BaseApplication.java`,
+  `utilities/preferences/.../preferences.kt#prefManager`, `utils/Environment.kt`).
+  **Zero harness-feature errors** were attributable to the feature code in isolation.
+  Conclusion: whole-module local compile is infeasible in this sandbox; verification of the
+  feature scope stands on the isolated compile above plus on-device smoke tests.
+- **C / C++ / JNI (gcc 12.2.0, g++ 12.2.0, PyPI `ziglang` 0.17.1 clang 22.1.8, `cppcheck`
+  2.22.0, `clang-tidy` LLVM 23.1.4):**
+  `termux-bootstrap.c`, `termux.c`, `local-socket.cpp` compile `-c` on gcc/g++ and with
+  `python-zig cc` for `aarch64-linux-gnu` and `x86_64-linux-gnu` (termux.c needs
+  `-D_GNU_SOURCE` for `ptsname_r` under clang; bionic Android headers are absent).
+  `cppcheck --enable=warning` is clean for the two JNI C files; `local-socket.cpp` shows only
+  two pre-existing upstream old-style-cast warnings (vendored Termux code, untouched).
+  JNI headers came from npm `javajre-linux-64/jre/include`; `android/log.h` was a small
+  hand-written stand-in (no NDK available). GameActivity sample C++ (6 files): `AndroidOut.cpp`
+  compiles; the other 5 are blocked on NDK-only headers (`EGL/egl.h`, `GLES3/gl3.h`,
+  `android/imagedecoder.h`, `game-activity/*`) which exist on no reachable host.
+- **Android resources / manifest / XML (Python ElementTree):**
+  244 XML files parsed — **0 malformed**. 813 references scanned attribute-aware
+  (`tools:` refs skipped): **41 unresolved — all Material-library resources**
+  (`Widget.Material3.*`, `TextAppearance.Material3.*`, `ShapeAppearance.Material3.*`,
+  `ThemeOverlay.MaterialComponents.*`, one library string id); **zero non-library
+  unresolved references**. Union of defined resources built from all 22 repo resource roots
+  (962 strings / 323 drawables / 188 layouts / 652 ids). The earlier regex-based pass produced
+  267 false positives across modules; the attribute-aware pass supersedes it.
+- **Placeholders:** no `TODO`/`FIXME`/`XXX` in any of the 20 files changed by this branch
+  (`git diff --name-only 24cf7fe..HEAD`).
+- **Docs:** this file and the newly created root `Environment.md` (the repo did not contain
+  one; created per maintainer request with the dated session recipe and receipts).
+- **Not done (cannot be done in this sandbox):** `assembleDebug` and on-device smoke tests.
+  PR #1 stays open until the maintainer builds with an Android SDK machine / arm64 device.
