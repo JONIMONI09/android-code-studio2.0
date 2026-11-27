@@ -304,3 +304,54 @@ reachable; `dl.google.com`, `services.gradle.org`, `plugins.gradle.org`, `repo.m
   one; created per maintainer request with the dated session recipe and receipts).
 - **Not done (cannot be done in this sandbox):** `assembleDebug` and on-device smoke tests.
   PR #1 stays open until the maintainer builds with an Android SDK machine / arm64 device.
+
+### 2026-11-27 (late 5) — Button audit; AGENTS.md + .agents/ standard created and verified
+
+**Button audit (Harness settings UI), all against real resources:**
+
+- Every `R.id` referenced from feature sources (24 ids) exists exactly where expected:
+  `fragment_ai_preferences.xml` holds `harnessEnableToggle`, `harnessAllowAllToggle`,
+  `harnessAutoTrustToggle` (MaterialSwitch), `harnessStatusText` (TextView), and the
+  MaterialButtons `harnessGlibcInstallButton`, `harnessInstallClaudeButton`,
+  `harnessInstallAgyButton`, `harnessConnectClaudeButton`, `harnessConnectAgyButton`,
+  `harnessRecheckButton`, `harnessViewLogsButton`, `harnessExportLogsButton`,
+  `harnessClearLogsButton`, `harnessResetButton`;
+  `dialog_harness_auth.xml` holds `authStatusText`/`authUrlText` (TextView),
+  `authOpenUrlButton` (MaterialButton), `authCodeEdit` (TextInputEditText).
+- Widget types match code expectations (MaterialSwitch→`setOnCheckedChangeListener` on
+  CompoundButton, TextInputEditText→`.text`, MaterialButton→`setOnClickListener` +
+  `isEnabled`); every `findViewById` target exists exactly once.
+- Wiring present for every interactive control (listeners at HarnessSettingsSection.kt
+  108–117, 378/387 for the auth dialog); `AIPreferencesFragment` instantiates/binds
+  `HarnessSettingsSection` and nulls it in `onDestroyView`.
+- `AIPreferencesFragment.kt` synthetic imports show `AuthenticationController`-free harness
+  model ids registered (`claude_harness`, `antigravity_harness`).
+- `dialog_harness_auth.xml` + `fragment_ai_preferences.xml`: well-formed; attribute-aware
+  reference validation passes (0 malformed of 234 files scanned, 0 non-library missing
+  references).
+
+**agents standard created (per maintainer instruction):**
+
+- `AGENTS.md` (68 lines, < 150): startup protocol, non-negotiable invariants, orientation
+  table, feature map, definition of done.
+- `.agents/rules/sandbox-and-verification.md`, `.agents/rules/android-code-quality.md`.
+- `.agents/skills/local-kotlin-check/` — `SKILL.md` + `scripts/kotlin_feature_check.py`:
+  npm `kotlin-compiler@2.4.21` + `javajre-linux-64@17.0.8` bootstrap in `/tmp/ktnpm`,
+  procedural `R.kt` from the real res/ union (aapt-style `.`→`_` name mangling, fixed during
+  packaging after the first packaged run failed on dotted style names), embedded framework
+  stubs in /tmp only, kotlinc `-jvm-target 17`. End-to-end run after packaging:
+  **`kotlin feature check: PASS` (exit 0)**, 13 source files.
+- `.agents/skills/local-native-and-xml-check/` — `SKILL.md` +
+  `scripts/validate_android_xml.py`: attribute-aware XML/manifest validator; prints
+  per-file/reference summary; exit 0 = pass. End-to-end run:
+  **exit 0** (234 files parsed OK, 813 refs scanned, 0 non-library unresolved; 41 allowed
+  Material-library refs).
+- `.agents/skills/environment-ledger/SKILL.md`: append-only dated ledger rules for
+  `Environment.md`.
+- Packaging gate (python): `AGENTS.md` 68 lines OK; 3/3 `SKILL.md` frontmatter valid
+  (`name` == folder, non-empty `description`); both scripts parse; rules non-trivial;
+  XML validator exit 0 — **RESULT: PASS**.
+- CI was not touched and not used; `.github/workflows/` unchanged; no `/tmp` artifacts or
+  `local.properties` committed.
+- Still outstanding: `./gradlew assembleDebug` (SDK/Gradle blocked in sandbox) and arm64
+  on-device smoke test; PR #1 remains open.

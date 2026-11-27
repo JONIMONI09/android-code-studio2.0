@@ -101,3 +101,16 @@ Attribute-aware ElementTree scan (skip `tools:` attributes and `@android:` refs)
 `./gradlew assembleDebug` (needs `gradle-*-bin.zip` from services.gradle.org and the Android
 platform/build-tools from dl.google.com — both blocked here). Any claim of a complete local
 APK build in this sandbox is false until that network exists.
+
+## 2026-11-27 — Verification entrypoint packaged in `.agents/` (repo commit on this branch)
+
+- Context: branch `arena/64ecbac3-android-code-studio2-0`, PR #1 open.
+- Measurements: `python3 .agents/skills/local-kotlin-check/scripts/kotlin_feature_check.py`
+  → exit 0 (kotlin feature check: PASS; 13 source files; warnings only).
+  `python3 .agents/skills/local-native-and-xml-check/scripts/validate_android_xml.py`
+  → exit 0 (234/234 XML files parsed; 813 refs; 0 non-library unresolved; 41 allowed
+  Material-library refs). Button/id audit of the Harness UI: 24/24 ids resolve.
+- Consequences: future sessions should invoke those two scripts as the standing local gate
+  instead of retyping commands; they bootstrap `/tmp/ktnpm` + regenerate stubs themselves.
+  Claims must still distinguish stub-checked Kotlin from SDK builds (unchanged).
+- Supersedes: none. The 2026-11-27 (late 2–4) entries remain valid.
