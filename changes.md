@@ -201,3 +201,49 @@ Not yet done: Kotlin compilation and on-device end-to-end verification are still
   `repo.maven.apache.org` (TLS cut), so the Gradle build cannot run here; compile
   verification is delegated to the repository's GitHub Actions workflow
   (`.github/workflows/asm_build.yml`, `workflow_dispatch`, Debug) on the pushed branch.
+
+### 2026-11-27 (late 3) — Local build attempt: stub-checked Kotlin type-check; full APK build blocked by sandbox egress
+
+Local verification was attempted inside the sandbox (no CI, per maintainer instruction).
+Receipts (all commands run today, outputs captured):
+
+- `kotlinc-jvm 2.4.21` (npm `kotlin-compiler` package, integrity-verified against the
+  registry) runs on the pip-provided Temurin JRE 21.0.13.1+2 (`jdk4py`). The harness
+  Kotlin sources — `artificial/harness/*.kt`, `artificial/agents/harness/*.kt`,
+  `artificial/agents/Agents.kt`, `artificial/secrets/ApiKey.kt` — **type-check with
+  exit code 0** (only benign warnings: deprecated `URL(String)`, two unnecessary safe
+  calls) against hand-written stubs for the Android/Material/Termux/kotlinx-coroutines
+  APIs. 197 `.class` files were emitted. This is a SYNTAX/TYPE sanity check of the
+  Kotlin against the API surface the code uses — it is NOT an Android build and does
+  NOT validate against the real android.jar / resources / manifest.
+- `python3 -m pip install --user install-jdk` succeeds, but `jdk.install('17')` fails
+  with `JdkError: <urlopen error TLS/SSL connection has been closed (EOF)>`
+  (api.adoptium.net blocked). No full JDK obtainable locally.
+- Android SDK command-line tools cannot be fetched:
+  `urllib.request.urlopen('https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip')`
+  → `URLError: TLS/SSL connection has been closed (EOF)`.
+- Gradle cannot bootstrap: `./gradlew assembleDebug` (JAVA_HOME set) fails inside
+  `org.gradle.wrapper.Install.forceFetch` with
+  `javax.net.ssl.SSLHandshakeException: Remote host terminated the handshake`
+  (services.gradle.org blocked). The wrapper wants `gradle-9.8.2-bin.zip`.
+- GitHub release binaries are also blocked: `release-assets.githubusercontent.com`
+  terminates the TLS handshake; only `github.com` (git/API), `codeload.github.com`,
+  `registry.npmjs.org`, `pypi.org` and `files.pythonhosted.org` are reachable.
+- Native toolchain proof instead of an NDK build: pip-provided `ziglang`
+  (clang 22.1.8) `zig cc`, `cmake` 4.4.5 and `ninja` 1.13.2 install and work
+  (hello-world compiled and ran). The repository's C/C++ sources were NOT rebuilt —
+  they require NDK headers (`jni.h`, `android/log.h`), which only `dl.google.com`
+  provides; this feature touches no C/C++ files anyway.
+- There is no root `package.json`, so no web build applies.
+- GitHub Actions is unregistered/disabled for this fork (confirmed earlier today), so
+  `.github/workflows/asm_build.yml` cannot be used either.
+
+Consequences:
+
+- The earlier note that compile verification is "delegated to the GitHub Actions
+  workflow" is SUPERSEDED — Actions is unavailable. Compile verification now stands
+  as (a) the stub-based local Kotlin type-check above, plus (b) whatever real Android
+  build the maintainer runs on a machine with SDK access (or on-device smoke test).
+- PR #1 remains open. Before merging, a real `./gradlew assembleDebug` on an
+  SDK-equipped machine and an arm64 on-device smoke test (install → sign-in →
+  Agent Mode request, including the glibc install button) are still required.
