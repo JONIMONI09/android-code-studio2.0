@@ -16,6 +16,7 @@
 */
 package com.tom.rv2ide.artificial.secrets
 
+import com.tom.rv2ide.app.BaseApplication
 import com.tom.rv2ide.preferences.internal.prefManager
 
 /*
@@ -109,7 +110,20 @@ object ApiKey {
     
     // Check if any API key is configured
     fun hasAnyApiKey(): Boolean {
-        return hasGeminiKey() || hasOpenAIKey() || hasDeepseekKey() || 
-               hasAnthropicKey() || hasGrokKey()
+        return hasGeminiKey() || hasOpenAIKey() || hasDeepseekKey() ||
+               hasAnthropicKey() || hasGrokKey() || hasHarnessAgent()
+    }
+
+    // Harness agents authenticate via device sign-in (Keystore / agy credentials),
+    // not via plain API keys — they count as configured when their sign-in is present.
+    fun hasHarnessAgent(): Boolean {
+        return runCatching {
+            com.tom.rv2ide.artificial.harness.HarnessAuth.isClaudeConnected(
+                BaseApplication.getBaseInstance())
+        }.getOrDefault(false) ||
+            runCatching {
+                com.tom.rv2ide.artificial.harness.HarnessAuth.isAgyConnected(
+                    BaseApplication.getBaseInstance())
+            }.getOrDefault(false)
     }
 }

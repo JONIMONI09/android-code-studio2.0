@@ -121,6 +121,16 @@ class Agents(ctx: Context) {
     "gemini-1.5-pro"
   )
   
+  private val claude_harness_models = arrayOf(
+    "sonnet",
+    "opus",
+    "haiku"
+  )
+
+  private val antigravity_harness_models = arrayOf(
+    "default"
+  )
+
   private val deepseek_models = arrayOf(
     "deepseek-chat",
     "deepseek-reasoner"
@@ -144,7 +154,7 @@ class Agents(ctx: Context) {
     "local-model"
   )
   
-  val ai_agents = openai_models + claude_models + gemini_models + deepseek_models + grok_models + localllm_models
+  val ai_agents = openai_models + claude_models + gemini_models + deepseek_models + grok_models + localllm_models + claude_harness_models + antigravity_harness_models
   
   fun getModelsForProvider(providerId: String): Array<String> {
     return when(providerId) {
@@ -154,6 +164,8 @@ class Agents(ctx: Context) {
       "deepseek" -> deepseek_models
       "grok" -> grok_models
       "localllm" -> localllm_models
+      "claude_harness" -> claude_harness_models
+      "antigravity_harness" -> antigravity_harness_models
       else -> gemini_models
     }
   }
@@ -166,6 +178,8 @@ class Agents(ctx: Context) {
       modelName in deepseek_models -> "deepseek"
       modelName in grok_models -> "grok"
       modelName in localllm_models -> "localllm"
+      modelName in claude_harness_models -> "claude_harness"
+      modelName in antigravity_harness_models -> "antigravity_harness"
       else -> null
     }
   }
@@ -177,6 +191,8 @@ class Agents(ctx: Context) {
           name in claude_models -> "claude"
           name in deepseek_models -> "deepseek"
           name in grok_models -> "grok"
+          name in claude_harness_models -> "claude_harness"
+          name in antigravity_harness_models -> "antigravity_harness"
           else -> sp.getString(PROVIDER_KEY, "gemini") ?: "gemini"
       }
       

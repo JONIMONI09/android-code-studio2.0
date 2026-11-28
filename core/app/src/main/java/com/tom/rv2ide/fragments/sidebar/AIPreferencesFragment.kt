@@ -22,6 +22,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.tom.rv2ide.artificial.dialogs.LocalLLMConfigDialog
+import com.tom.rv2ide.artificial.harness.HarnessSettingsSection
 
 class AIPreferencesFragment(
     private val aiAgent: AIAgentManager,
@@ -37,6 +38,7 @@ class AIPreferencesFragment(
     private lateinit var currentModelText: MaterialTextView
     
     private val providerSwitchDialog by lazy { ProviderSwitchDialog(requireContext()) }
+    private var harnessSection: HarnessSettingsSection? = null
     
     private var completionStateMonitorJob: Job? = null
     private var isCompletionEnabled = true
@@ -56,6 +58,7 @@ class AIPreferencesFragment(
         setupProviderDropdown()
         setupModelDropdown()
         setupToggles()
+        harnessSection = HarnessSettingsSection(view, viewLifecycleOwner, requireContext()).also { it.bind() }
         updateCurrentStatus()
         startCompletionStateMonitoring()
     }
@@ -66,6 +69,7 @@ class AIPreferencesFragment(
         updateProviderDropdownSelection()
         updateModelDropdown()
         syncCodeCompletionToggle()
+        harnessSection?.refreshStatus()
     }
     
     override fun onPause() {
@@ -89,10 +93,12 @@ class AIPreferencesFragment(
             "claude" to "Anthropic Claude",
             "deepseek" to "DeepSeek",
             "grok" to "xAI Grok",
-            "localllm" to "Local LLM"
+            "localllm" to "Local LLM",
+            "claude_harness" to "Claude Code (Harness)",
+            "antigravity_harness" to "Antigravity (Harness)"
         )
         
-        val allProviderIds = listOf("gemini", "openai", "claude", "deepseek", "grok", "localllm")
+        val allProviderIds = listOf("gemini", "openai", "claude", "deepseek", "grok", "localllm", "claude_harness", "antigravity_harness")
         val providerNames = allProviderIds.map { providerMap[it] ?: it }
         
         val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, providerNames)
@@ -126,7 +132,9 @@ class AIPreferencesFragment(
             "claude" to "Anthropic Claude",
             "deepseek" to "DeepSeek",
             "grok" to "xAI Grok",
-            "localllm" to "Local LLM"
+            "localllm" to "Local LLM",
+            "claude_harness" to "Claude Code (Harness)",
+            "antigravity_harness" to "Antigravity (Harness)"
         )
         
         val currentProviderId = agents.getProvider()
@@ -147,6 +155,8 @@ class AIPreferencesFragment(
             "deepseek" -> "DeepSeek"
             "grok" -> "xAI Grok"
             "localllm" -> "Local LLM"
+            "claude_harness" -> "Claude Code (Harness)"
+            "antigravity_harness" -> "Antigravity (Harness)"
             else -> currentProvider.uppercase()
         }
         
@@ -304,7 +314,11 @@ class AIPreferencesFragment(
             
             showSnackbar("Switched to $providerName")
         } else {
-            showSnackbar("⚠️ No valid API key for $providerName")
+            if (providerId == "claude_harness" || providerId == "antigravity_harness") {
+                showSnackbar("Install $providerName from AI Preferences → Harness (Experimental) and sign in first.")
+            } else {
+                showSnackbar("⚠️ No valid API key for $providerName")
+            }
         }
     }
 
@@ -333,6 +347,7 @@ class AIPreferencesFragment(
     
     override fun onDestroyView() {
         stopCompletionStateMonitoring()
+        harnessSection = null
         super.onDestroyView()
     }
 }

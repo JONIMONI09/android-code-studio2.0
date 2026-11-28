@@ -90,6 +90,14 @@ class IDEApplication : TermuxApplication() {
   override fun attachBaseContext(base: Context) {
     super.attachBaseContext(base)
 
+    // Initialize the crash-safe harness logger as early as possible so that even
+    // failures during startup are recorded to disk.
+    try {
+      com.tom.rv2ide.artificial.harness.HarnessLog.init(base)
+    } catch (t: Throwable) {
+      Log.e("IDEApplication", "Unable to initialize the harness logger", t)
+    }
+
     SilentInstaller.init(this)
     // Load native libraries after base context is attached
     TreeSitter.loadLibrary()
@@ -266,6 +274,10 @@ class IDEApplication : TermuxApplication() {
       intent.action = CrashHandlerActivity.REPORT_ACTION
       intent.putExtra(CrashHandlerActivity.TRACE_KEY, getFullStackTrace(th))
       intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      try {
+        com.tom.rv2ide.artificial.harness.HarnessLog.fatal(
+            "IDEApplication", "Uncaught exception on thread ${thread.name}", th)
+      } catch (ignored: Throwable) {}
       startActivity(intent)
       if (uncaughtExceptionHandler != null) {
         uncaughtExceptionHandler!!.uncaughtException(thread, th)
